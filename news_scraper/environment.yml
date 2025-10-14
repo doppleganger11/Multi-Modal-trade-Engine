@@ -1,0 +1,14 @@
+name: growwtrade
+channels:
+  - defaults
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+  - https://repo.anaconda.com/pkgs/msys2
+dependencies:
+  - python=3.11
+  - bottleneck
+  - numexpr
+  - numpy=1.26.4
+  - pandas=2.2.2
+  - pyarrow=14
+prefix: C:\Users\JAISAKHTHIVELAN\anaconda3\envs\growwtrade
