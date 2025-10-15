@@ -1,0 +1,14 @@
+pandas==2.2.2
+numpy==1.26.4
+pyarrow==15.0.2
+yfinance==0.2.54
+curl_cffi==0.6.2
+requests==2.32.3
+pytz==2024.1
+
+playwright==1.47.0
+tenacity==8.3.0
+openai==1.52.2
+nltk==3.9.1
+sendgrid==6.11.0      # optional: email
+python-dotenv==1.0.1  # optional: .env support
