@@ -1,0 +1,19 @@
+conda activate growwtrade
+
+# 1) Get fresh news + score sentiment (−5..+5)
+python groww_playwright_scrape.py --firms "./firms.csv" --out "./data/todays_news.csv" --headless True
+
+# 2) Update prices incrementally (appends only new trading days)
+python prices_pipeline.py --firms "./firms.csv"
+
+# 3) Recompute weekly ADV guardrails
+python build_weekly_adv.py
+
+# 4) Compute signals (price-based + sentiment)
+python signals_pipeline.py
+
+# 5) Build portfolio for your capital (e.g., ₹10,000)
+python portfolio_engine.py --capital 10000
+
+# 6) Build executable orders
+python order_build.py --capital 10000
