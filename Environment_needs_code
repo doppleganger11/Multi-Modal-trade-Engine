@@ -1,0 +1,20 @@
+
+conda env create -f environment.yml
+conda activate growwtrade
+python -m playwright install chromium
+
+pip install -r requirements.txt
+
+setx OPENAI_API_KEY "sk-xxxx"
+
+As we use vader fallback:-
+python -c "import nltk; nltk.download('vader_lexicon')"
+
+
+if u need mail about news scores:-
+setx SENDGRID_API_KEY "SG.xxxx"
+setx MAIL_FROM "you@domain.com"
+setx MAIL_TO "you@domain.com"
+
+
+NOW YOU ARE READY TO RUN THE DAILY COMMANDS...:)
