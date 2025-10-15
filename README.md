@@ -1,8 +1,94 @@
-Multi-Modal Trade EngineA lightweight, end-to-end pipeline for algorithmic trading based on momentum, mean-reversion, and news sentiment signals for a defined universe of Indian equities.How It WorksThis engine automates the entire process from data collection to order generation in a sequential pipeline:Scrapes the latest news headlines for a fixed universe of Indian equities from Groww pages.Scores each headline for sentiment using the OpenAI API (on a scale of -5 to +5).Fetches daily historical prices and volumes via Yahoo Finance.Builds weekly Average Daily Volume (ADV) and Average Daily Value (ADVVAL) as liquidity guardrails.Computes trading signals by blending momentum, mean-reversion, and the news sentiment scores.Constructs a target portfolio using Kelly/mean-variance style weighting, subject to liquidity caps.Outputs final share orders sized according to available capital and ADV constraints.Repository ContentsThis repository contains the core scripts and configuration files that drive the trading engine.Configurationfirms.csv: Defines the universe of equities for the engine. It must contain firm_name, url, and either a ticker or yf_ticker.Execution Scriptsgroww_playwright_scrape.pyScrapes news cards from Groww for each firm, deduplicates them, and scores each headline using OpenAI.Output: data/todays_news.csvprices_pipeline.pyPerforms an incremental daily fetch of price and volume data from Yahoo Finance, with NSE/BSE fallbacks and robust retries. It only appends new data.Output: data/prices_daily.csvbuild_weekly_adv.pyAggregates the daily price data into weekly ADV (shares) and ADVVAL (shares × close) guardrails, using Friday week-ends.Output: data/weekly_adv.csvsignals_pipeline.pyBuilds trading signals from prices (e.g., 20-day momentum, mean-reversion, volatility) and blends them with the headline sentiment from todays_news.csv.Output: data/signals_today.csvportfolio_engine.pyConverts the generated signals into target portfolio weights, inspired by Kelly/mean-variance. It applies liquidity caps using ADV/ADVVAL, enforces per-name limits, and normalizes weights to 100%.Output: data/portfolio_today.csvorder_build.pyTranslates the final portfolio weights into concrete share orders for a given capital, honoring ADV caps and rounding.Output: data/orders_today.csvOutputsThe primary outputs of the pipeline are stored in the data/ directory as CSV files, providing full transparency at each step.data/todays_news.csv: Contains the scraped headlines and their corresponding sentiment scores.data/prices_daily.csv: A long-format panel of daily price and volume data for each equity.data/weekly_adv.csv: Contains weekly average daily volume and ADVVAL.data/signals_today.csv: The generated model signals (alpha, sigma, etc.) for each firm.data/portfolio_today.csv: The target portfolio weights with notes on liquidity constraints.data/orders_today.csv: The final share counts and notional value per firm, ready for execution.Getting StartedPrerequisitesPython 3.8+An OpenAI API KeyInstallationClone the repository:git clone [https://github.com/your-username/multi-modal-trade-engine.git](https://github.com/your-username/multi-modal-trade-engine.git)
-cd multi-modal-trade-engine
-Create a virtual environment and install dependencies:python -m venv venv
-source venv/bin/activate
+# AI News Sentiment Analyser — README
+
+A compact guide to run the pipeline end-to-end: what it does, what each main script is responsible for, what outputs you get, the environment you must set up, and the exact execution order.
+
+---
+
+## 1) What the Pipeline Does (in order)
+
+1. **Scrape** latest headlines for selected Indian stocks from **Groww** news pages.
+2. **Clean & Deduplicate** rows and normalize relative times (e.g., “2 hours ago”) to timestamps.
+3. **Score Sentiment** of each headline using **OpenAI** (range: −5 … +5) with a polarity label.
+4. **Persist** results to a CSV log for the day (append-only, idempotent).
+5. **Notify (Optional)** via email if new headlines cross a score threshold.
+
+Pipeline summary: **Scrape → Clean/Dedupe → Score → Save CSV → Email (optional)**
+
+---
+
+## 2) Main Code Responsibilities
+
+> Adjust file names if your repo uses slightly different paths. The responsibilities below match the canonical layout.
+
+- `src/main.py`  
+  Orchestrates the full run (scrape → score → save → email). Exposes CLI flags like `--once`.
+
+- `src/config.py`  
+  Loads environment variables (`.env`), constants (paths, thresholds, timezone), and the ticker list (from `.env` or `tickers.txt`).
+
+- `src/scraping/groww_playwright_scrape.py`  
+  Uses **Playwright (Chromium)** to visit Groww pages, scroll, and extract rows:  
+  `firm_name, headline, article_url, rel_time_raw, source_url`.
+
+- `src/scraping/parse.py`  
+  Utilities to clean text, parse “X mins/hours ago” into timestamps, and construct dedupe keys.
+
+- `src/scoring/score_headlines_openai.py`  
+  Sends headlines to **OpenAI** and returns `headline_score ∈ [−5, +5]` plus `sentiment_label` (`negative/neutral/positive`).
+
+- `src/notify/mailer.py`  
+  Sends a summary email (HTML + plaintext) grouped by firm with links and scores.
+
+- `src/notify/formatter.py`  
+  Formats the email body (sections, headings, table-like lists).
+
+- `src/utils/logger.py`  
+  Configures rotating file logs (INFO by default).
+
+- `src/utils/timeutils.py`  
+  Timezone helpers (defaults to `Asia/Kolkata`) and ISO conversions.
+
+---
+
+## 3) Outputs You Get
+
+- **CSV (daily append):** `data/todays_news.csv`  
+  Columns:
+  - `scraped_at` (UTC ISO)
+  - `published_at` (best-effort from relative time)
+  - `firm_name`
+  - `headline`
+  - `article_url`
+  - `source_url` (Groww listing)
+  - `rel_time_raw`
+  - `headline_score` (−5 … +5)
+  - `sentiment_label` (`negative`/`neutral`/`positive`)
+  - `model_name` (OpenAI model)
+  - `run_id` (UUID of the job)
+
+- **Logs:** `logs/run.log` (rotating)
+- **Email (optional):** summary of new headlines crossing the configured score threshold.
+
+> **Deduplication key:** `(firm_name, headline)` ensures repeated runs don’t re-insert the same row.
+
+---
+
+## 4) Environment Setup (do this once)
+
+### Prerequisites
+- **Python** 3.10+
+- **Playwright** with **Chromium** browser
+- **OpenAI API key**
+- **SMTP** account (e.g., Gmail with an **App Password**)
+
+### Create virtual environment & install
+```bash
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# macOS/Linux:
+source .venv/bin/activate
+
 pip install -r requirements.txt
-Set up your environment variables (e.g., in a .env file):OPENAI_API_KEY='your_api_key_here'
-UsageRun the main pipeline script (assuming you create one to orchestrate the steps):python main.py
-Or run the scripts individually in the correct order.
+playwright install chromium
+
